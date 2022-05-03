@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Rick And Morty</title>
+</head>
+<body class="bg-slate-800">
+  <div class="mx-auto max-w-3xl py-12 px-4 sm:px-0">
+    <div class="w-full px-2 py-1 space-x-2 rounded-md border my-2 border-slate-400 flex items-center">
+      <div id="search" class="text-slate-400">
+      </div>
+      <input id="search_input" class="apperance-none flex-grow focus:outline-none bg-transparent text-slate-200" placeholder="Search characters... (Press '/' to focus)"/>
+      <div id="reset">
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-6" id="cards"></div>
+  </div>
+  <script src="index.js"></script>
+</body>
+</html>
