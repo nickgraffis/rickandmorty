@@ -1,9 +1,9 @@
 var searchInput = document.querySelector('#search_input')
 var search = document.querySelector('#search')
 var reset = document.querySelector('#reset')
-
+var statusFilter = null
 function getCharacters(query) {
-  fetch(`https://rickandmortyapi.com/api/character${query ? `?name=${query}` : ''}`)
+  fetch(`https://rickandmortyapi.com/api/character${query ? `?name=${query}` : ''}${query && statusFilter ? `&status=${statusFilter}` : !query && statusFilter ? `?status=${statusFilter}` : ''}`)
   .then(res => res.json())
   .then(data => {
     console.log(data)
@@ -107,3 +107,33 @@ searchInput.addEventListener('keyup', function(e) {
     }, 500)
   }
 })
+
+document.querySelector('#status-filter').addEventListener('click', function(e) {
+  if (statusFilter === 'Alive') {
+    statusFilter = 'Dead'
+    document.querySelector('#status-filter-text').textContent = 'Searching for Dead Characters'
+  } else {
+    statusFilter = 'Alive'
+    document.querySelector('#status-filter-text').textContent = 'Searching for Alive Characters'
+  }
+  if (statusFilter) {
+      document.querySelector('#clear-status').innerHTML = /*html*/`
+      <div id="clear-status-button" class="p-0.5 bg-slate-600 rounded-full text-slate-400 cursor-pointer hover:bg-slate-500">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </div>
+    `
+    document.querySelector('#clear-status-button').addEventListener('click', function(e) {
+      e.stopPropagation()
+      statusFilter = ''
+      document.querySelector('#status-filter-text').textContent = 'Add Status Filter'
+      document.querySelector('#clear-status').innerHTML = ''
+      document.querySelector('#status-filter-indicator').classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
+      getCharacters()
+    })
+  }
+  getCharacters(input)
+  document.querySelector('#status-filter-indicator').classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
+})
+document.querySelector('#status-filter-indicator').classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
