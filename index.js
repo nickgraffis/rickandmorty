@@ -1,13 +1,49 @@
+var loading = true
 var searchInput = document.querySelector('#search_input')
 var search = document.querySelector('#search')
 var reset = document.querySelector('#reset')
+var statusFilterEl = document.querySelector('#status-filter')
+var resetButtonEl;
+var statusFilterText = document.querySelector('#status-filter-text')
+var clearStatusEl = document.querySelector('#clear-status')
+var statusFilterIndicatorEl = document.querySelector('#status-filter-indicator')
+var locationFilterEl = document.querySelector('#location-filter')
+var locationFilterText = document.querySelector('#location-filter-text')
+var locationFilter = ''
 var statusFilter = null
-function getCharacters(query) {
-  fetch(`https://rickandmortyapi.com/api/character${query ? `?name=${query}` : ''}${query && statusFilter ? `&status=${statusFilter}` : !query && statusFilter ? `?status=${statusFilter}` : ''}`)
+
+function stopLoading () {
+  document.querySelector('#body').classList.toggle('hidden')
+  loading = false
+  document.querySelector('#loading').classList.toggle('hidden')
+}
+function getCharacters(query, page) {
+  if (allCharecters?.length > 800) {
+    return Promise.resolve(
+      allCharecters.filter(charecter => {
+        let filters = []
+        if (query) filters.push(charecter.name.toLowerCase().includes(query.toLowerCase()))
+        if (locationFilter) filters.push(charecter.location.name.toLowerCase().includes(locationFilter.toLowerCase()))
+        if (statusFilter) filters.push(charecter.status.toLowerCase() === statusFilter)
+        return filters.every(filter => filter)
+      }).slice(0, 20)
+    )
+  } else {
+    return fetch(`https://rickandmortyapi.com/api/character${query ? `?name=${query}` : ''}${query && statusFilter ? `&status=${statusFilter}` : !query && statusFilter ? `?status=${statusFilter}` : ''}${query && page ? `&page=${page}` : !query && page ? `?page=${page}` : ''}`)
+    .then(res => res.json())
+    .then(data => {
+      console.log(data)
+      return data.results
+    })
+    .catch(err => console.log(err))
+  }
+}
+
+function getLocations(query) {
+  return fetch(`https://rickandmortyapi.com/api/location${query ? `?name=${query}` : ''}`)
   .then(res => res.json())
   .then(data => {
-    console.log(data)
-    createCards(data.results)
+    return data
   })
   .catch(err => console.log(err))
 }
@@ -21,7 +57,9 @@ function createCards(data) {
     card.classList.add('sm:col-span-1')
     card.innerHTML = /*html*/`
       <div class="flex bg-slate-700 rounded-lg text-white">
-        <img class="object-cover rounded-l-lg w-36" src="${data[i].image}" />
+        <div class="relative w-36 h-full bg-green-300 rounded-l-lg">
+          <img class="object-cover rounded-l-lg w-36 relative z-50" src="${data[i].image}" />
+        </div>
         <div class="p-2 flex-grow overflow-hidden">
           <div class="flex space-x-2 items-center w-full">
             <div class="flex-shrink-0 w-3 h-3 rounded-full ${data[i].status === 'Alive' ? 'bg-green-400' : 'bg-red-400'}"></div>
@@ -47,7 +85,6 @@ function createCards(data) {
   }
 }
 
-getCharacters()
 setSearching(false)
 document.addEventListener('keydown', function(e) {
   if (e.key === '/') {
@@ -75,6 +112,11 @@ function setSearching(bool) {
 }
 
 var timeout;
+function debounce(func, ms) {
+  clearTimeout(timeout)
+  timeout = setTimeout(func, ms)
+}
+
 searchInput.addEventListener('keyup', function(e) {
   var searchValue = e.target.value
   input = searchValue
@@ -86,9 +128,10 @@ searchInput.addEventListener('keyup', function(e) {
         </svg>
       </div>
     ` 
-    document.querySelector('#reset-button').addEventListener('click', function() {
+    resetButtonEl = document.querySelector('#reset-button')
+    resetButtonEl.addEventListener('click', function() {
       searchInput.value = ''
-      getCharacters()
+      getCharacters().then(data => createCards(data))
       setSearching(false)
       reset.innerHTML = ''
       searchInput.focus()
@@ -97,27 +140,26 @@ searchInput.addEventListener('keyup', function(e) {
     reset.innerHTML = ''
   }
   if (searchValue) {
-    clearTimeout(timeout)
     setSearching(true)
     isSearching = true
-    timeout = setTimeout(function() {
-      getCharacters(searchValue)
+    debounce(function() {
+      getCharacters(searchValue).then(data => createCards(data))
       setSearching(false)
       isSearching = false
     }, 500)
   }
 })
 
-document.querySelector('#status-filter').addEventListener('click', function(e) {
+statusFilterEl.addEventListener('click', function(e) {
   if (statusFilter === 'Alive') {
     statusFilter = 'Dead'
-    document.querySelector('#status-filter-text').textContent = 'Searching for Dead Characters'
+    statusFilterText.textContent = 'Searching for Dead Characters'
   } else {
     statusFilter = 'Alive'
-    document.querySelector('#status-filter-text').textContent = 'Searching for Alive Characters'
+    statusFilterText.textContent = 'Searching for Alive Characters'
   }
   if (statusFilter) {
-      document.querySelector('#clear-status').innerHTML = /*html*/`
+      clearStatusEl.innerHTML = /*html*/`
       <div id="clear-status-button" class="p-0.5 bg-slate-600 rounded-full text-slate-400 cursor-pointer hover:bg-slate-500">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -127,13 +169,161 @@ document.querySelector('#status-filter').addEventListener('click', function(e) {
     document.querySelector('#clear-status-button').addEventListener('click', function(e) {
       e.stopPropagation()
       statusFilter = ''
-      document.querySelector('#status-filter-text').textContent = 'Add Status Filter'
-      document.querySelector('#clear-status').innerHTML = ''
-      document.querySelector('#status-filter-indicator').classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
-      getCharacters()
+      statusFilterText.textContent = 'Add Status Filter'
+      clearStatusEl.innerHTML = ''
+      statusFilterIndicatorEl.classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
+      getCharacters().then(data => createCards(data))
     })
   }
-  getCharacters(input)
-  document.querySelector('#status-filter-indicator').classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
+  getCharacters(input).then(data => createCards(data))
+  statusFilterIndicatorEl.classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
 })
-document.querySelector('#status-filter-indicator').classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
+statusFilterIndicatorEl.classList = `w-2 h-2 rounded-full ${!statusFilter ? 'bg-slate-400' : statusFilter === 'Alive' ? 'bg-green-400' : 'bg-red-400'}`
+
+var selectedLocation = -1;
+var locations = []
+function fillInLocations() {
+  document.querySelector('#location-filter-list').innerHTML = ''
+  for (let i = 0; i < locations.results.length; i++) {
+    let location = locations.results[i]
+    document.querySelector('#location-filter-list').innerHTML += /*html*/`
+      <li id="item-${i}" class="px-2 py-1 hover:bg-slate-600 rounded-md cursor-pointer">
+        <p class="text-slate-200">${location.name}</p>
+      </li>
+    `
+  }
+}
+let clearLocationEventListener
+locationFilterEl.addEventListener('click', function() {
+  document.querySelector('#location-filter-popover').classList.toggle('hidden')
+  document.querySelector('#location-filter-input').focus()
+  document.querySelector('#location-filter-input').addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') {
+        locationFilter = locations.results[selectedLocation].name
+        locationFilterText.textContent = locationFilter
+        document.querySelector('#location-filter-input').value = ''
+        selectedLocation = 0
+        document.querySelector('#location-filter-popover').classList.toggle('hidden')
+        getCharacters().then(data => {
+          console.log(locationFilter, data)
+          createCards(data)
+        })
+      } else if (e.key === 'ArrowDown') {
+        fillInLocations()
+        if (selectedLocation < locations.results.length - 1) {
+          selectedLocation++
+          is(
+            document.querySelector('#location-filter-list'),
+            document.querySelector(`#item-${selectedLocation}`),
+            { scroll: true }
+          )
+          document.querySelector('#item-' + selectedLocation).classList.toggle('bg-slate-400')
+        } else {
+          selectedLocation = 0
+          is(
+            document.querySelector('#location-filter-list'),
+            document.querySelector(`#item-${selectedLocation}`),
+            { scroll: true }
+          )
+          document.querySelector('#item-' + selectedLocation).classList.toggle('bg-slate-400')
+        }
+      } else if (e.key === 'ArrowUp') {
+        fillInLocations()
+        if (selectedLocation > 0) {
+          selectedLocation--
+          is(
+            document.querySelector('#location-filter-list'),
+            document.querySelector(`#item-${selectedLocation}`),
+            { scroll: true }
+          )
+          document.querySelector('#item-' + selectedLocation).classList.toggle('bg-slate-400')
+        } else {
+          selectedLocation = locations.length - 1
+          is(
+            document.querySelector('#location-filter-list'),
+            document.querySelector(`#item-${selectedLocation}`),
+            { scroll: true }
+          )
+          document.querySelector('#item-' + selectedLocation).classList.toggle('bg-slate-400')
+        }
+      } else {
+        debounce(function() {
+          getLocations(e.target.value)
+          .then(returnedLocations => {
+            locations = returnedLocations
+            document.querySelector('#clear-location').innerHTML = /*html*/`
+              <div id="clear-location-button" class="p-0.5 bg-slate-600 rounded-full text-slate-400 cursor-pointer hover:bg-slate-500">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            `
+            removeEventListener('click', clearLocationEventListener)
+            clearLocationEventListener = document.querySelector('#clear-location-button').addEventListener('click', function(e) {
+              e.stopPropagation()
+              locationFilter = ''
+              locationFilterText.textContent = 'Add Location Filter'
+              document.querySelector('#clear-location').innerHTML = ''
+              getCharacters().then(data => createCards(data))
+            })
+            fillInLocations()
+          })
+        }, 500)
+      }
+  })
+})
+
+
+var allCharecters = []
+function backgroundLoadAllCharectersIntoMemory() {
+  if (localStorage.getItem('rick_and_morty_characters')) {
+    allCharecters = JSON.parse(localStorage.getItem('rick_and_morty_characters'))
+    return Promise.resolve(allCharecters)
+  } else {
+    let total = 826
+    let perPage = 20
+    let pages = Math.ceil(total / perPage)
+    let promises = []
+    for (let i = 0; i < pages; i++) {
+      promises.push(getCharacters(null, i))
+    }
+    return Promise.all(promises)
+    .then(function(results) {
+      results.forEach(result => {
+        allCharecters = allCharecters.concat(result)
+        localStorage.setItem('rick_and_morty_characters', JSON.stringify(allCharecters))
+      })
+    }).catch(function(err) {
+      console.log('err', err)
+    })
+  }
+}
+
+backgroundLoadAllCharectersIntoMemory().then(_ => {
+  stopLoading()
+  getCharacters().then(data => createCards(data))
+})
+
+function is(parent, child, options) {
+  let parentTop = parent.getBoundingClientRect().top;
+  let parentBottom = parent.offsetHeight;
+  let childTop = child.getBoundingClientRect().top;
+  let childHeight = child.getBoundingClientRect().height;
+  let startOfChild = childTop - parentTop;
+  let endOfElement = startOfChild + childHeight;
+  if (options?.scroll && endOfElement > parentBottom) {
+    parent.scrollBy({
+      top: endOfElement - parentBottom + (options?.buffer || 0),
+      behavior: 'smooth',
+    });
+    // parent.scrollTop =
+    //   parent.scrollTop + (endOfElement - parentBottom) + (options?.buffer || 0);
+  } else if (options?.scroll && startOfChild < 0) {
+    parent.scrollBy({
+      top: startOfChild - (options?.buffer || 0),
+      behavior: 'smooth',
+    });
+    // parent.scrollTop = parent.scrollTop + startOfChild - (options?.buffer || 0);
+  }
+  return endOfElement > parentBottom || startOfChild < 0;
+}
